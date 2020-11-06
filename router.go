@@ -52,22 +52,18 @@ func match(pattern, path string) (bool, map[string]string) {
 	return true, params
 }
 
-func (r *router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	for pattern, handler := range r.handlers[req.Method] {
-		if ok, params := match(pattern, req.URL.Path); ok {
-			//Context 생성
-			c := Context{
-				Params:         make(map[string]interface{}),
-				ResponseWriter: w,
-				Request:        req,
+func (r *router) handler() HandlerFunc {
+	return func(c *Context) {
+		for pattern, handler := range r.handlers[c.Request.Method] {
+			if ok, params := match(pattern, c.Request.URL.Path); ok {
+				for k,v :=range params {
+					c.Params[k] = v
+				}
+				handler(c)
+				return
 			}
-			for k, v := range params {
-				c.Params[k] = v
-			}
-			//요청 url에 해당하는 handler 수행
-			handler(&c)
-			return
 		}
+		http.NotFound(c.ResponseWriter, c.Request)
+		return
 	}
-	http.NotFound(w, req)
 }
